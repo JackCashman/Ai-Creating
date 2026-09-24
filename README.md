@@ -27,3 +27,18 @@ A/B expression items enter the due queue; C pauses. Default intervals are 1/3/7/
 - https://developer.oxforddictionaries.com/documentation/making-requests-to-the-api
 - https://api.collinsdictionary.com/api/v1/documentation/html
 - https://www.collinsdictionary.com/collins-api
+
+## 每日微型单元（本次更新）
+
+进入课程后默认打开“每日单元”。每课最多五个同主题原创表达，按理解、听辨、连接、个人造句、隐藏答案提取、真实输出与修改运行。合成示范不冒充视频原声。首次使用先完成提取及两次输出；已有历史时还需先回忆旧内容。过程保存在原课程记录的 `micro` 字段，不删除旧学习记录，不以完成单元授予等级。提示使用和首次回忆保留；草稿可跨课程切换恢复。
+
+表达首次复习按当前间隔列表首项安排（默认次日）。表达 JSON 备份可从“复习计划与数据”恢复：校验完整文件后再写入，按条目ID或主题与表达去重，保留本地已有内容与间隔设置。备份限5MB；仅包含表达及其复习历史，不包含课程对话、单元记录或录音。
+
+### 使用与验证
+
+- 网站：原有 Scene English Site，保持原有私有访问。
+- 源码：https://github.com/JackCashman/Ai-Creating
+- 本地校验：先 `npm run build`，再 `npm test`；无需安装第三方依赖。
+- 部署：构建输出是 Worker ESM，依赖 Sites 私有身份代理，不能直接作为 GitHub Pages 的完整服务部署。迁移至其他平台需实现可信服务端鉴权，不能接受客户端自行提供的身份头。
+- 新增回归：空单元不能完成、隐藏答案后才可提交、初次回忆保留、课程草稿隔离、提示证据不清零、首次复习次日、备份去重与无效文件拒绝。
+- 测试使用本地 DOM 桩及模拟服务；未完成真实手机、麦克风、YouTube字幕与付费API联调。

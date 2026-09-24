@@ -30,3 +30,11 @@ globalThis.fetch=async()=>Response.json({results:[{lexicalEntries:[{lexicalCateg
 const ox=await worker.fetch(req('/api/dictionary',{provider:'oxford',word:'learn'}),{OXFORD_APP_ID:'fixture',OXFORD_APP_KEY:'fixture'});assert.equal((await ox.json()).entries[0].definition,'to gain knowledge');
 globalThis.fetch=originalFetch;
 console.log('Passed: recall intervals and lapses, paused cards, input bounds, signed-in APIs, origin guard, missing authorization, model response validation and dictionary parsing. Provider results mocked; live AI/dictionaries await authorization.');
+
+const backup={id:'a',phrase:'work with',theme:'Work',meaning:'collaborate',grade:'A',due:now,stage:1,reviews:1,history:[{at:now,grade:'good',answer:'I work with teachers.'}]};
+assert.equal(E.restore({cards:[backup]},[]).added,1);
+assert.equal(E.restore({cards:[backup,backup]},[]).skipped,1);
+assert.equal(E.restore({cards:[backup]},[backup]).added,0);
+assert.throws(()=>E.restore({cards:[backup,{...backup,due:'invalid'}]},[]));
+assert.equal(E.restore({cards:[backup]},[]).cards[0].history[0].answer,backup.history[0].answer);
+console.log('Passed: backup validation, preserved history and duplicate-safe restoration.');

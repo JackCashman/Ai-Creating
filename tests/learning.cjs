@@ -39,8 +39,17 @@ run("openExpression({phrase:'work with',theme:'Work',meaning:'do something toget
 ids.get('expressionForm').onsubmit({preventDefault(){}});assert.equal(run('bank.cards.length'),1);assert(persisted.sceneEnglishBankV1);
 run("openExpression({phrase:'WORK WITH',theme:'work',meaning:'duplicate'})");ids.get('expressionForm').onsubmit({preventDefault(){}});assert.equal(run('bank.cards.length'),1,'Deduplicate same theme');
 ids.get('bankGrade').value='all';run('renderBank()');ids.get('bankNav').onclick();assert.equal(ids.get('lessonView').hidden,true);assert.equal(ids.get('bankView').hidden,false);
-ids.get('startReview').onclick();assert.equal(ids.get('recallSolution').hidden,true);ids.get('revealAnswer').onclick();assert.equal(gradeButtons[2].disabled,true,'Blank recall cannot be scored independent');
+assert(run('bank.cards[0].due')>Date.now()+23*3600000,'First review is tomorrow');run('bank.cards[0].due=0');ids.get('startReview').onclick();assert.equal(ids.get('recallSolution').hidden,true);ids.get('revealAnswer').onclick();assert.equal(gradeButtons[2].disabled,true,'Blank recall cannot be scored independent');
 gradeButtons[0].onclick();assert.equal(run('bank.cards[0].stage'),0);assert.equal(run('bank.cards[0].reviews'),1);assert.equal(ids.get('recallPanel').hidden,true);
 run("bank.cards[0].due=0;nextRecall()");ids.get('recallAnswer').value='I work with teachers.';ids.get('revealAnswer').onclick();assert.equal(gradeButtons[2].disabled,false);assert.equal(ids.get('recallAnswer').readOnly,true);gradeButtons[2].onclick();assert.equal(run('bank.cards[0].stage'),1);
 run("openCourse('habit');recordFor('habit').ai.messages=[{role:'user',content:'My habit is walking.'}]");ids.get('newRound').onclick();assert.equal(run("recordFor('habit').aiArchive.length"),1);assert.equal(run("recordFor('habit').ai.messages.length"),0);
 console.log('Passed: expression CRUD persistence/deduplication, bank navigation, hidden recall and evidence guards, AI unavailable state, archived contexts. DOM harness only, not microphone/browser QA.');
+
+vm.runInContext(fs.readFileSync('public/unit.js','utf8'),ctx);
+run("openCourse('intro')");ids.get('unitSave').onclick();assert.equal(run('unitState().history.length'),0,'Empty task cannot be completed');
+ids.get('unitHide').onclick();assert.equal(ids.get('unitCards').hidden,true);ids.get('unitRecall').value='I work in education.';ids.get('unitRecall').oninput();ids.get('unitReveal').onclick();assert.equal(ids.get('unitRecall').readOnly,true);
+for(const [id,value] of [['unitOutput','I work with teachers.'],['unitRevision','I work with teachers to help children learn.']]){ids.get(id).value=value;ids.get(id).oninput()}
+run("openCourse('habit');openCourse('intro')");assert.equal(ids.get('unitOutput').value,'I work with teachers.','Draft survives course changes');
+ids.get('unitSave').onclick();assert.equal(run('unitState().history.length'),1);assert.equal(run('unitState().history[0].unitRecall'),'I work in education.');assert.equal(run('unitState().draft.unitOutput'),undefined);
+ids.get('unitHide').onclick();ids.get('unitRecall').value='remember';ids.get('unitRecall').oninput();ids.get('unitStudy').onclick();assert.equal(run('unitState().draft.assisted'),true,'Returning to answers preserves hint evidence');
+console.log('Passed: micro-unit completion guards, hidden recall, immutable first attempt, course draft isolation and assistance evidence.');
