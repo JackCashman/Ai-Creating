@@ -1,0 +1,11 @@
+import fs from 'node:fs/promises';
+const assets={};
+for(const file of await fs.readdir('public')) assets['/'+file]=await fs.readFile('public/'+file,'utf8');
+const curriculum=await fs.readFile('public/curriculum.js','utf8');
+const worker=await fs.readFile('worker/index.js','utf8');
+await fs.rm('dist',{recursive:true,force:true});
+await fs.mkdir('dist/server',{recursive:true});
+await fs.mkdir('dist/.openai',{recursive:true});
+await fs.writeFile('dist/server/index.js','const ASSETS='+JSON.stringify(assets)+';\n'+curriculum+'\n'+worker);
+await fs.copyFile('.openai/hosting.json','dist/.openai/hosting.json');
+console.log('Built Worker and '+Object.keys(assets).length+' embedded assets.');

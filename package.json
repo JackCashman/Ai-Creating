@@ -1,0 +1,1 @@
+{"name":"scene-english","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","test":"node tests/learning.cjs && node tests/practice.mjs"}}
