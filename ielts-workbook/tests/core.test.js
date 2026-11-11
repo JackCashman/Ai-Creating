@@ -29,3 +29,14 @@ test('malformed exercises are rejected before book persistence',()=>{
  assert.throws(()=>validateBook({version:1,id:'b',pages:[{id:'p',blocks:[],exercises:[{id:'q',type:'match',prompt:'Match'}]}]}));
 });
 test('pathological compound word cannot bypass page limit',()=>{const text='a-'.repeat(301)+'a';const pages=paginate(text);assert.equal(pages.map(x=>x.text).join(''),text);assert.ok(pages.every(p=>countUnits(p.text)<=300));});
+import {decodeClip,normalize} from '../public/dictation.js';
+test('decodes independent 8 kHz IMA clips in high-nibble-first order',()=>{
+ assert.deepEqual(Array.from(decodeClip('d/8='),x=>x*32768),[11,41,-22,-158]);
+ assert.equal(normalize('  Don’t   stop! '),"don't stop");
+});
+test('malformed paper marks, typed answers or missing related pages cannot replace study data',()=>{
+ const book={version:1,id:'b',pages:[{id:'p',blocks:[],exercises:[{id:'q',type:'choice',prompt:'Pick',options:['a','b']}]}]};
+ for(const records of [{paper:{p:[{}]}},{answers:{'p:q':{}}},{dictation:{hello:{attempts:1,correct:2}}}])assert.throws(()=>validateBackup({version:1,bookId:'b',records},'b',book));
+ book.pages[0].blocks.push({id:'x',kind:'reading',text:'sample',related:['missing']});
+ assert.throws(()=>validateBook(book));
+});
