@@ -1,0 +1,97 @@
+diff --git a/src/backend/internal/mcp/mcp.ts b/src/backend/internal/mcp/mcp.ts
+index c514205..b58bad4 100644
+--- a/src/backend/internal/mcp/mcp.ts
++++ b/src/backend/internal/mcp/mcp.ts
+@@ -19,6 +19,16 @@ export interface McpPrompt {
+ 
+ export function listMcpTools(): McpTool[] {
+   return [
++    {
++      name: "get_download_link",
++      description: "Get a signed download URL for a mounted file (expires in 15 minutes)",
++      inputSchema: {
++        type: "object",
++        properties: { path: { type: "string", description: "Absolute mounted file path" } },
++        required: ["path"],
++        additionalProperties: false,
++      },
++    },
+     {
+       name: "list_files",
+       description: "List files and directories in OpenList storage",
+@@ -66,8 +76,24 @@ async function handleToolCall(
+   name: string,
+   args: Record<string, any>,
+   env?: any,
++  context?: any,
+ ): Promise<any> {
+   try {
++    if (name === "get_download_link") {
++      const path = args?.path
++      if (typeof path !== "string" || !path.startsWith("/") || path.split("/").includes("..")) {
++        throw new Error("An absolute mounted file path without traversal is required")
++      }
++      if (!context) throw new Error("HTTP request context required")
++      const { getItem } = await import("../op/storage")
++      const { signDownloadPath } = await import("../../pkg/sign")
++      const { item, provider, rawUrl } = await getItem(path, { env })
++      if (item.is_dir) throw new Error("Choose a file, not a directory")
++      if (!rawUrl || !rawUrl.startsWith("/api/")) throw new Error("No local download route available")
++      const url = new URL(rawUrl, context.req.url)
++      url.searchParams.set("sign", await signDownloadPath(context, path, 900))
++      return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify({ name: item.name, size: item.size, provider, download_url: url.href, expires_in: 900 }) }], isError: false } }
++    }
+     if (name === "list_files") {
+       const { listItems } = await import("../op/storage")
+       const path = (args?.path || "/") as string
+@@ -140,8 +166,13 @@ export async function handleMcpJsonRpc(
+   id: any,
+   params: any,
+   env?: any,
++  context?: any,
+ ): Promise<any> {
+   switch (method) {
++    case "initialize":
++      return { jsonrpc: "2.0", id, result: { protocolVersion: "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "openlist-work", version: "0.1.0" } } }
++    case "ping":
++      return { jsonrpc: "2.0", id, result: {} }
+     case "tools/list":
+       return {
+         jsonrpc: "2.0",
+@@ -160,7 +191,7 @@ export async function handleMcpJsonRpc(
+           id,
+         }
+       }
+-      return handleToolCall(id, name, args, env)
++      return handleToolCall(id, name, args, env, context)
+     }
+     case "resources/list":
+       return {
+diff --git a/src/backend/server/mcp.ts b/src/backend/server/mcp.ts
+index 9085d76..17ab9d8 100644
+--- a/src/backend/server/mcp.ts
++++ b/src/backend/server/mcp.ts
+@@ -16,7 +16,7 @@ mcpRouter.get("/sse", (c) => {
+   return c.text(`event: endpoint\ndata: /api/mcp/messages\n\n`)
+ })
+ 
+-mcpRouter.post("/messages", async (c) => {
++const handleMessage = async (c: any) => {
+   const body = await c.req.json().catch(() => ({}))
+   const { method, id, params } = body
+ 
+@@ -31,7 +31,11 @@ mcpRouter.post("/messages", async (c) => {
+     )
+   }
+ 
+-  const responseRpc = await handleMcpJsonRpc(method, id, params, c.env)
+-  const status = responseRpc.error ? 404 : 200
++  if (id === undefined && method.startsWith("notifications/")) return c.body(null, 202)
++  const responseRpc = await handleMcpJsonRpc(method, id, params, c.env, c)
++  const status = 200
+   return c.json(responseRpc, status)
+-})
++}
++
++mcpRouter.post("/messages", handleMessage)
++mcpRouter.post("/", handleMessage)
