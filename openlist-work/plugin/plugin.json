@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "openlist-work-free",
+  "version": "0.1.0",
+  "description": "Access mounted OpenList files and signed download links.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "OpenList 网盘文件",
+        "shortDescription": "浏览已挂载网盘并获取下载链接",
+        "capabilities": []
+      }
+    }
+  }
+}
