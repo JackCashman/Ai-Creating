@@ -68,19 +68,39 @@ index c514205..b58bad4 100644
      case "resources/list":
        return {
 diff --git a/src/backend/server/mcp.ts b/src/backend/server/mcp.ts
-index 9085d76..17ab9d8 100644
+index 9085d76..929bbb4 100644
 --- a/src/backend/server/mcp.ts
 +++ b/src/backend/server/mcp.ts
-@@ -16,7 +16,7 @@ mcpRouter.get("/sse", (c) => {
+@@ -4,8 +4,7 @@ import { adminAuthMiddleware } from "./middlewares"
+ 
+ export const mcpRouter = new Hono()
+ 
+-// MCP 端点要求管理员鉴权（当前为占位实现，仅暴露工具 schema；
+-// 加鉴权防止未授权探测 / 未来接入真实能力时的越权访问）
++// All MCP operations require administrator authentication.
+ mcpRouter.use("*", adminAuthMiddleware)
+ 
+ mcpRouter.get("/sse", (c) => {
+@@ -16,22 +15,26 @@ mcpRouter.get("/sse", (c) => {
    return c.text(`event: endpoint\ndata: /api/mcp/messages\n\n`)
  })
  
 -mcpRouter.post("/messages", async (c) => {
 +const handleMessage = async (c: any) => {
    const body = await c.req.json().catch(() => ({}))
-   const { method, id, params } = body
+-  const { method, id, params } = body
++  const { method, id, params } = body && typeof body === "object" ? body : {}
  
-@@ -31,7 +31,11 @@ mcpRouter.post("/messages", async (c) => {
+-  if (!method) {
++  if (typeof method !== "string" || !method) {
+     return c.json(
+       {
+         jsonrpc: "2.0",
+         error: { code: -32600, message: "Invalid Request" },
+-        id: id || null,
++        id: id ?? null,
+       },
+       400,
      )
    }
  
@@ -95,3 +115,13 @@ index 9085d76..17ab9d8 100644
 +
 +mcpRouter.post("/messages", handleMessage)
 +mcpRouter.post("/", handleMessage)
+diff --git a/src/backend/work-free.ts b/src/backend/work-free.ts
+new file mode 100644
+index 0000000..e2675b8
+--- /dev/null
++++ b/src/backend/work-free.ts
+@@ -0,0 +1,4 @@
++import app, { setSpaFallbackHtml } from './index'
++import html from '../../dist/index.html'
++setSpaFallbackHtml(html)
++export default { fetch: app.fetch }
