@@ -1,0 +1,34 @@
+--- a/src/backend/server/mcp.ts
++++ b/src/backend/server/mcp.ts
+@@ -1,3 +1,4 @@
++import { verifyWithJwks } from "hono/jwt"
+ import { Hono } from "hono"
+ import { handleMcpJsonRpc } from "../internal/mcp/mcp"
+ import { adminAuthMiddleware } from "./middlewares"
+@@ -5,7 +6,25 @@
+ export const mcpRouter = new Hono()
+ 
+ // All MCP operations require administrator authentication.
+-mcpRouter.use("*", adminAuthMiddleware)
++mcpRouter.use("*", async (c, next) => {
++  const assertion = c.req.header("Cf-Access-Jwt-Assertion")
++  if (!assertion) return adminAuthMiddleware(c, next)
++  const env = c.env as Record<string, string>
++  const issuer = env.MCP_ACCESS_ISSUER
++  if (!issuer || !env.MCP_ACCESS_AUD || !env.MCP_OWNER_EMAIL) return c.body(null, 401)
++  try {
++    const claims = await verifyWithJwks(assertion, {
++      jwks_uri: issuer + "/cdn-cgi/access/certs",
++      allowedAlgorithms: ["RS256"],
++      verification: { iss: issuer, aud: env.MCP_ACCESS_AUD },
++    })
++    if (typeof claims.exp !== "number" || typeof claims.email !== "string" ||
++        claims.email.toLowerCase() !== env.MCP_OWNER_EMAIL.toLowerCase()) return c.body(null, 401)
++  } catch {
++    return c.body(null, 401)
++  }
++  await next()
++})
+ 
+ mcpRouter.get("/sse", (c) => {
+   c.header("Content-Type", "text/event-stream")
